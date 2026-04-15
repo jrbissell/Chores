@@ -632,7 +632,7 @@ Find a specific dollar amount from the search results. Return ONLY this JSON, no
 {"store":"Walmart","price_per_unit":"X.XX","found":true}
 If no price found: {"store":"Walmart","price_per_unit":null,"found":false}`;
 
-    const res=await fetch('/.netlify/functions/claude',{
+    const res=await fetch('/functions/claude',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:prompt}]})
