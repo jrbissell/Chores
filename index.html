@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BissHiz · Chores &amp; Groceries</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{font-family:'Sora',sans-serif;background:#f8f9fa;color:#111827;min-height:100vh;-webkit-font-smoothing:antialiased}
+    #app{max-width:640px;margin:0 auto}
+    .hdr{padding:28px 24px 12px;background:#f8f9fa;position:sticky;top:0;z-index:30}
+    .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .logo{color:#0066cc;font-size:22px;font-weight:800;letter-spacing:-.5px;cursor:pointer;user-select:none}
+    .logo-sub{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:3px;color:#9ca3af;margin-top:-1px}
+    .btn-add{background:#0066cc;color:#fff;border:none;border-radius:50%;width:46px;height:46px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,102,204,.4);transition:background .15s,transform .1s;flex-shrink:0}
+    .btn-add:hover{background:#0052a3}.btn-add:active{transform:scale(.93)}
+    .view-toggle{display:flex;background:rgba(229,231,235,.6);padding:4px;border-radius:14px}
+    .vtab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:none;border-radius:10px;font-family:'Sora',sans-serif;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;background:transparent;color:#9ca3af}
+    .vtab.active{background:#fff;color:#0066cc;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+    main{padding:0 24px 140px}
+    .weather{background:#fff;border-radius:16px;border:1px solid #f3f4f6;box-shadow:0 1px 4px rgba(0,0,0,.05);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .w-left{display:flex;align-items:center;gap:14px}
+    .w-icon{font-size:40px;line-height:1}
+    .w-fc{display:flex;gap:6px;margin-top:4px}
+    .w-fc-day{display:flex;flex-direction:column;align-items:center;gap:1px}
+    .w-fc-ico{font-size:11px}.w-fc-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase}
+    .w-temp{font-size:28px;font-weight:800}.w-cond{font-size:12px;color:#9ca3af;font-weight:600}
+    .w-loc{text-align:right}.w-zip{font-size:12px;font-weight:800}.w-city{font-size:10px;color:#9ca3af}
+    .date-nav{background:#fff;border-radius:12px;border:1px solid #f3f4f6;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;padding:4px;margin-bottom:18px}
+    .dnbtn{background:none;border:none;cursor:pointer;padding:8px 10px;border-radius:8px;color:#9ca3af;transition:background .15s;display:flex;align-items:center}
+    .dnbtn:hover{background:#f9fafb}
+    .dn-lbl{display:flex;align-items:center;gap:7px;font-weight:700;color:#374151;font-size:14px}
+    .chore-list{display:flex;flex-direction:column;gap:8px}
+    .ccard{background:#fff;border-radius:16px;border:1px solid #f3f4f6;box-shadow:0 1px 4px rgba(0,0,0,.05);padding:14px 14px 14px 16px;display:flex;align-items:center;gap:14px;transition:opacity .2s}
+    .ccard.done{opacity:.55}
+    .tog{background:none;border:none;cursor:pointer;padding:0;flex-shrink:0;display:flex;align-items:center;color:#d1d5db;transition:color .15s}
+    .tog:hover{color:#0066cc}.tog.checked{color:#22c55e}
+    .cbody{flex:1;min-width:0}
+    .ctitle{font-size:16px;font-weight:700;color:#111827;line-height:1.3}
+    .ctitle.struck{text-decoration:line-through;color:#9ca3af}
+    .cdesc{font-size:12px;color:#9ca3af;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rep-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;background:#eff6ff;color:#0066cc;padding:3px 8px;border-radius:6px;margin-top:6px}
+    .cacts{display:flex;align-items:center;gap:2px}
+    .ibtn{background:none;border:none;cursor:pointer;padding:7px;border-radius:8px;color:#d1d5db;display:flex;align-items:center;transition:all .15s}
+    .ibtn.edit:hover{color:#0066cc;background:#eff6ff}
+    .ibtn.del:hover{color:#ef4444;background:#fef2f2}
+    .ibtn.heart:hover,.ibtn.heart.on{color:#ef4444;background:#fef2f2}
+    .ibtn.heart.on svg{fill:currentColor}
+    .ibtn.price:hover{color:#16a34a;background:#f0fdf4}
+    .empty{text-align:center;padding:44px 0}
+    .empty-ico{width:60px;height:60px;background:#f3f4f6;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#d1d5db}
+    .empty-lbl{color:#9ca3af;font-weight:600;font-size:14px}
+    .empty-sub{color:#d1d5db;font-size:11px;margin-top:4px}
+    .bnav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:calc(100% - 48px);max-width:380px;background:rgba(255,255,255,.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.4);box-shadow:0 8px 32px rgba(0,0,0,.14);border-radius:24px;padding:6px;display:flex;gap:4px;z-index:50}
+    .nbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 8px;border-radius:18px;border:none;cursor:pointer;background:none;color:#9ca3af;font-family:'Sora',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;transition:all .15s}
+    .nbtn.active{background:#0066cc;color:#fff;box-shadow:0 4px 14px rgba(0,102,204,.35)}
+    .g-tabs{display:flex;background:#f3f4f6;padding:4px;border-radius:12px;margin-bottom:14px;gap:2px}
+    .gtab{flex:1;padding:8px;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;background:transparent;color:#9ca3af;transition:all .15s}
+    .gtab.active{background:#fff;color:#0066cc;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+    .g-ctrl{display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px}
+    .cbtn{display:flex;align-items:center;gap:5px;padding:7px 13px;border-radius:10px;border:none;cursor:pointer;font-family:'Sora',sans-serif;font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;transition:background .15s}
+    .cbtn.imp{background:#eff6ff;color:#0066cc}.cbtn.imp:hover{background:#dbeafe}
+    .cbtn.clr{background:#fef2f2;color:#ef4444}.cbtn.clr:hover{background:#fee2e2}
+    .store-sec{margin-bottom:28px}
+    .store-hdr{display:flex;align-items:center;justify-content:space-between;padding:0 2px;margin-bottom:10px}
+    .store-left{display:flex;align-items:center;gap:8px;color:#0066cc}
+    .store-nm{font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:-.3px;color:#111827}
+    .store-tot{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;text-align:right}
+    .store-tot .tot{color:#16a34a;font-size:13px}
+    .dept-sec{margin-bottom:16px}
+    .dept-hdr{display:flex;align-items:center;gap:5px;padding:0 2px;margin-bottom:6px;color:#9ca3af}
+    .dept-nm{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+    .gcrd{background:#fff;border-radius:12px;border:1px solid #f3f4f6;padding:10px 10px 10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:5px;transition:opacity .2s}
+    .gcrd.bought{opacity:.5}
+    .gn{font-weight:700;font-size:14px;color:#111827;line-height:1.3}
+    .gn.struck{text-decoration:line-through;color:#9ca3af}
+    .gbr{color:#6b7280;font-weight:500;font-size:13px}
+    .gsz{color:#9ca3af;font-size:12px}
+    .gmeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px}
+    .gqty{font-size:10px;color:#9ca3af}
+    .gqty b{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-right:2px}
+    .pbadge{font-size:10px;font-weight:800;color:#16a34a;background:#f0fdf4;padding:2px 6px;border-radius:5px}
+    .taxlbl{font-size:8px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1px}
+    .fav-crd{background:#fff;border-radius:12px;border:1px solid #f3f4f6;padding:14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+    .fav-sd{font-size:9px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1.5px;margin-top:5px}
+    .fav-acts{display:flex;align-items:center;gap:8px;flex-shrink:0}
+    .btn-unfav{background:#fef2f2;color:#ef4444;border:none;border-radius:10px;padding:8px;cursor:pointer;display:flex;align-items:center;transition:background .15s}
+    .btn-unfav:hover{background:#fee2e2}.btn-unfav svg{fill:currentColor}
+    .btn-addfav{background:#0066cc;color:#fff;border:none;border-radius:10px;padding:8px;cursor:pointer;display:flex;align-items:center;box-shadow:0 2px 8px rgba(0,102,204,.25);transition:background .15s}
+    .btn-addfav:hover{background:#0052a3}
+    /* Undo toast */
+    .toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);width:calc(100% - 48px);max-width:380px;background:#111827;color:#fff;padding:13px 16px;border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.28);display:none;align-items:center;justify-content:space-between;z-index:200}
+    .toast-msg{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+    .toast-undo{background:#fff;color:#0066cc;border:none;border-radius:7px;padding:5px 11px;font-family:'Sora',sans-serif;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;white-space:nowrap}
+    /* Error toast */
+    .err-toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);width:calc(100% - 48px);max-width:380px;background:#ef4444;color:#fff;padding:12px 16px;border-radius:14px;box-shadow:0 4px 20px rgba(239,68,68,.4);display:none;align-items:center;gap:10px;z-index:300;font-size:13px;font-weight:700}
+    .err-toast svg{flex-shrink:0}
+    @keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    @keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    /* Modals */
+    .mov{position:fixed;inset:0;background:rgba(0,0,0,.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+    @media(min-width:580px){.mov{align-items:center}.msheet{border-radius:28px!important}}
+    .msheet{background:#fff;border-radius:28px 28px 0 0;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:24px;animation:sheetUp .22s ease}
+    .mdlg{background:#fff;border-radius:28px;width:calc(100% - 48px);max-width:420px;padding:24px;animation:popIn .2s ease;max-height:90vh;overflow-y:auto}
+    @keyframes sheetUp{from{transform:translateY(50px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes popIn{from{transform:scale(.93);opacity:0}to{transform:scale(1);opacity:1}}
+    .mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+    .mtitle{font-size:18px;font-weight:800;color:#111827}
+    .mclose{background:none;border:none;cursor:pointer;padding:7px;border-radius:50%;color:#9ca3af;display:flex;align-items:center;transition:background .15s}
+    .mclose:hover{background:#f3f4f6}
+    /* Forms */
+    .fg{margin-bottom:14px}.fg.hidden{display:none}
+    .flbl{display:block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#9ca3af;margin-bottom:6px}
+    .fin,.fsel,.fta{width:100%;background:#f9fafb;border:1.5px solid #f3f4f6;border-radius:12px;padding:12px 14px;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;color:#111827;outline:none;transition:border-color .15s,box-shadow .15s;appearance:none}
+    .fin:focus,.fsel:focus,.fta:focus{border-color:#0066cc;box-shadow:0 0 0 3px rgba(0,102,204,.1)}
+    .fta{resize:none}
+    .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .fchkrow{display:flex;align-items:center;gap:10px;padding:8px 0}
+    .fchk{width:18px;height:18px;accent-color:#0066cc;cursor:pointer}
+    .fchklbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;cursor:pointer}
+    .apill{height:44px;display:flex;align-items:center;padding:0 14px;background:#eff6ff;border-radius:12px;font-weight:800;font-size:13px;color:#0066cc}
+    .btn-primary{width:100%;background:#0066cc;color:#fff;border:none;border-radius:14px;padding:15px;margin-top:8px;font-family:'Sora',sans-serif;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(0,102,204,.35);transition:background .15s}
+    .btn-primary:hover{background:#0052a3}.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+    .btn-sec{flex:1;background:#f3f4f6;color:#6b7280;border:none;border-radius:14px;padding:15px;font-family:'Sora',sans-serif;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:background .15s}
+    .btn-sec:hover{background:#e5e7eb}
+    .btn-price{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;background:#f0fdf4;color:#16a34a;border:1.5px solid #dcfce7;border-radius:14px;padding:12px;margin-bottom:8px;font-family:'Sora',sans-serif;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;transition:background .15s}
+    .btn-price:hover{background:#dcfce7}.btn-price:disabled{opacity:.5;cursor:not-allowed}
+    .brow{display:flex;gap:10px;margin-top:8px}
+    /* Price comparison */
+    .price-nm{font-size:20px;font-weight:800;color:#0066cc;margin-bottom:4px}
+    .price-sub{font-size:11px;color:#9ca3af;font-weight:600;margin-bottom:16px}
+    .price-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:12px;color:#6b7280;font-size:13px;font-weight:600;text-align:center}
+    .price-error{background:#fef2f2;border-radius:14px;padding:16px;color:#ef4444;font-size:13px;font-weight:600;text-align:center;line-height:1.6}
+    .price-error strong{font-weight:800;display:block;margin-bottom:4px}
+    .price-rows{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+    .price-row{background:#f9fafb;border:2px solid #f3f4f6;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .15s}
+    .price-row:hover{border-color:#bfdbfe;background:#eff6ff}
+    .price-row.selected{border-color:#0066cc;background:#eff6ff}
+    .price-row.unavail{opacity:.45;cursor:default}
+    .price-row.unavail:hover{border-color:#f3f4f6;background:#f9fafb}
+    .pr-store{font-size:15px;font-weight:800;color:#111827}
+    .pr-avail{font-size:11px;color:#9ca3af;font-weight:600;margin-top:2px}
+    .pr-right{text-align:right;flex-shrink:0}
+    .pr-price{font-size:20px;font-weight:800;color:#16a34a}
+    .pr-na{font-size:13px;font-weight:700;color:#d1d5db}
+    .pr-best{font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;background:#0066cc;color:#fff;padding:3px 8px;border-radius:20px;margin-top:4px;display:inline-block}
+    /* Store resolver */
+    .resolver-opts{display:flex;flex-direction:column;gap:7px;margin:14px 0}
+    .resolver-opt{background:#f9fafb;border:2px solid #f3f4f6;border-radius:12px;padding:13px 16px;font-size:14px;font-weight:700;color:#111827;cursor:pointer;text-align:left;transition:all .15s;font-family:'Sora',sans-serif}
+    .resolver-opt:hover{border-color:#bfdbfe;background:#eff6ff}
+    .resolver-opt.add-new{color:#0066cc}.resolver-opt.unassigned{color:#9ca3af}
+    /* CSV / Merge */
+    .savings-title{font-size:21px;font-weight:800;text-align:center;margin-bottom:8px}
+    .savings-body{font-size:14px;color:#6b7280;font-weight:500;text-align:center;margin-bottom:14px}
+    .csv-list{max-height:350px;overflow-y:auto;margin-bottom:20px}
+    .csv-item{background:#f9fafb;border-radius:10px;border:1px solid #f3f4f6;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+    .csv-nm{font-weight:700;font-size:13px;color:#111827}
+    .csv-meta{font-size:8px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:1.5px;margin-top:2px}
+    .csv-price{font-size:11px;font-weight:800;color:#16a34a}
+    .merge-ico{width:60px;height:60px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#0066cc}
+    .merge-detail{background:#f9fafb;border-radius:12px;padding:14px;font-size:13px;color:#6b7280;margin-bottom:18px}
+    .merge-row{display:flex;justify-content:space-between;margin-bottom:4px}
+    .merge-row:last-child{margin-bottom:0}
+    /* Debug panel */
+    .dbg-entry{padding:10px 0;border-bottom:1px solid #f3f4f6;font-family:'JetBrains Mono',monospace}
+    .dbg-time{font-size:9px;color:#9ca3af;margin-bottom:3px}
+    .dbg-msg{font-size:11px;color:#ef4444;font-weight:700;word-break:break-word}
+    .dbg-detail{font-size:10px;color:#6b7280;margin-top:3px;word-break:break-word;white-space:pre-wrap}
+    /* Spinner */
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#0066cc;border-radius:50%;animation:spin .75s linear infinite}
+    .loading-full{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;gap:14px;color:#9ca3af;font-size:13px;font-weight:600}
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading-full"><div class="spinner"></div><div>Loading...</div></div>
+</div>
+
+<input type="file" id="csvInput" accept=".csv" style="display:none">
+
+<!-- Undo toast -->
+<div class="toast" id="toast">
+  <div class="toast-msg">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span id="toastMsg"></span>
+  </div>
+  <button class="toast-undo" onclick="handleUndo()">&#8617; Undo</button>
+</div>
+
+<!-- Error toast -->
+<div class="err-toast" id="errToast" style="animation:slideDown .22s ease">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="errMsg">Error</span>
+</div>
+
+<script>
+// ============================================================
+//  CONFIG
+// ============================================================
+const SUPABASE_URL    = 'https://zxsdfmccbpzhhszwcjzn.supabase.co';
+const SUPABASE_ANON   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4c2RmbWNjYnB6aGhzendjanpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMjE3NDgsImV4cCI6MjA5MTU5Nzc0OH0.G8L8GgkrMqaLgfslrt3JiIlDrGPWEY69cSNYHCGtChg';
+const KROGER_CLIENT_ID     = 'grocerylist-bissell-bbcd0zyb';
+const KROGER_CLIENT_SECRET = 'sdcpnjaJPsn5-hJTd_GDJbpFcS1FVcVvKclegWFO';
+
+// ============================================================
+//  INLINE SVG ICONS (avoids Lucide-in-innerHTML failures)
+// ============================================================
+const IC = {
+  plus:       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  plus_sm:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  clock:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  cart:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+  check:      '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  check_sm:   '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  check_ico:  '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  circle:     '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>',
+  circle_sm:  '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>',
+  repeat:     '<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+  repeat_lg:  '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+  edit:       '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  trash:      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>',
+  trash_sm:   '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>',
+  heart:      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  heart_lg:   '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+  dollar:     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  dollar_lg:  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  store:      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  tag:        '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>',
+  calendar:   '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0066cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  chevL:      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>',
+  chevR:      '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+  x:          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  search:     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  dad:        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>',
+  honeyd:     '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg>',
+  mom:        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  bug:        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6z"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 4-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17 17c2.3.1 4 1.9 4 4"/></svg>',
+};
+
+// ============================================================
+//  CONSTANTS
+// ============================================================
+const DEFAULT_STORES = ['Kroger','Walmart','Wholefoods','Unassigned'];
+const DEPARTMENTS    = ['Produce','Dairy','Meat','Frozen','Pantry','Bakery','Household','Personal','Unassigned','Other'];
+const DAYS           = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS         = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PEOPLE         = ['Dad','Honey-do','Mom'];
+const TAX_RATE       = 0.0825;
+const WEATHER        = { temp:72, cond:'Partly Cloudy', icon:'⛅', forecast:[{day:'Thu',icon:'🌤'},{day:'Fri',icon:'🌧'},{day:'Sat',icon:'☀️'}] };
+
+// ============================================================
+//  STATE
+// ============================================================
+let chores=[], groceries=[], favs=[], stores=[...DEFAULT_STORES];
+let view='chores', gSub='list', person='Dad', selDate=localDate(new Date());
+let undoFn=null, undoTimer=null, mergeRes=null, csvPending=[];
+let priceLoading=false, priceRows=[], priceSelIdx=null, priceItemRef=null, priceItemId=null;
+let savingsData=null;
+
+// ============================================================
+//  DEBUG / ERROR TRACKING
+// ============================================================
+const dbgLog=[];
+let errTimer=null;
+
+function logError(msg, detail=''){
+  const entry={time:new Date().toLocaleTimeString(),msg,detail:String(detail)};
+  dbgLog.unshift(entry);
+  if(dbgLog.length>50) dbgLog.pop();
+  showErrToast(msg);
+  console.error('[BissHiz]',msg,detail);
+}
+
+function showErrToast(msg){
+  if(errTimer) clearTimeout(errTimer);
+  const t=document.getElementById('errToast');
+  const m=document.getElementById('errMsg');
+  if(!t||!m) return;
+  m.textContent=msg;
+  t.style.display='flex';
+  errTimer=setTimeout(()=>{ t.style.display='none'; },6000);
+}
+
+function showDebugPanel(){
+  closeModal('dbgOv');
+  const ov=document.createElement('div'); ov.className='mov'; ov.id='dbgOv'; ov.style.zIndex=500;
+  ov.onclick=e=>{ if(e.target===ov) closeModal('dbgOv'); };
+  const d=document.createElement('div'); d.className='msheet';
+  const entries=dbgLog.length===0
+    ? '<div style="text-align:center;padding:28px;color:#9ca3af;font-size:13px;font-weight:600">No errors logged yet 🎉</div>'
+    : dbgLog.map(e=>`<div class="dbg-entry"><div class="dbg-time">${e.time}</div><div class="dbg-msg">${esc(e.msg)}</div>${e.detail?`<div class="dbg-detail">${esc(e.detail)}</div>`:''}</div>`).join('');
+  d.innerHTML=`
+    <div class="mhdr">
+      <div style="display:flex;align-items:center;gap:10px">${IC.bug}<h2 class="mtitle">Debug Log</h2></div>
+      <button class="mclose" onclick="closeModal('dbgOv')">${IC.x}</button>
+    </div>
+    <div style="max-height:60vh;overflow-y:auto">${entries}</div>
+    <div class="brow" style="margin-top:16px">
+      <button class="btn-sec" onclick="dbgLog.length=0;closeModal('dbgOv')">Clear Log</button>
+      <button class="btn-primary" style="flex:1;margin-top:0" onclick="closeModal('dbgOv')">Close</button>
+    </div>
+  `;
+  ov.appendChild(d); document.body.appendChild(ov);
+}
+
+// ============================================================
+//  DATE HELPERS
+// ============================================================
+function localDate(d){ return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; }
+function p2(n){ return String(n).padStart(2,'0'); }
+function dateLabel(s){
+  if(s===localDate(new Date())) return 'Today';
+  const [y,m,d]=s.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+function shiftDate(s,n){ const [y,m,d]=s.split('-').map(Number); const dt=new Date(y,m-1,d); dt.setDate(dt.getDate()+n); return localDate(dt); }
+function nextDate(s,type,val){
+  const [y,m,d]=s.split('-').map(Number); const dt=new Date(y,m-1,d);
+  if(type==='daily')                dt.setDate(dt.getDate()+1);
+  else if(type==='weekly')          dt.setDate(dt.getDate()+7);
+  else if(type==='monthly')         dt.setMonth(dt.getMonth()+1);
+  else if(type==='yearly')          dt.setFullYear(dt.getFullYear()+1);
+  else if(type==='interval_days')   dt.setDate(dt.getDate()+(val?.interval||1));
+  else if(type==='interval_weeks')  dt.setDate(dt.getDate()+(val?.interval||1)*7);
+  else if(type==='interval_months') dt.setMonth(dt.getMonth()+(val?.interval||1));
+  return localDate(dt);
+}
+function repLabel(type,val){
+  if(!type||type==='none') return '';
+  if(type==='daily') return 'Daily';
+  if(type==='weekly') return `Every ${DAYS[val?.dayOfWeek??0]}`;
+  if(type==='monthly'){ const n=val?.dayOfMonth||1; const s=['st','nd','rd'][((n+9)%10)-1]||'th'; return `Monthly · ${n}${s}`; }
+  if(type==='yearly') return `Yearly · ${MONTHS[val?.monthOfYear??0]}`;
+  if(type==='interval_days')   return `Every ${val?.interval} days`;
+  if(type==='interval_weeks')  return `Every ${val?.interval} weeks`;
+  if(type==='interval_months') return `Every ${val?.interval} months`;
+  return type;
+}
+
+// ============================================================
+//  MONEY
+// ============================================================
+function parsePrice(s){ return parseFloat((s||'').replace(/[^0-9.]/g,''))||0; }
+function parseQty(s)  { const n=parseFloat(s||''); return isNaN(n)?1:n; }
+
+// ============================================================
+//  SUPABASE
+// ============================================================
+const {createClient}=supabase;
+const sb=createClient(SUPABASE_URL,SUPABASE_ANON,{
+  global:{ fetch:(...args)=>fetch(...args) }, // Safari SharedWorker fix
+  realtime:{ params:{ eventsPerSecond:10 } }
+});
+
+async function loadAll(){
+  try {
+    const [c,g,f]=await Promise.all([
+      sb.from('chores').select('*').order('created_at'),
+      sb.from('grocery_items').select('*').order('created_at'),
+      sb.from('favorite_items').select('*').order('created_at')
+    ]);
+    if(c.error) throw new Error('chores: '+c.error.message);
+    if(g.error) throw new Error('grocery_items: '+g.error.message);
+    if(f.error) throw new Error('favorite_items: '+f.error.message);
+    chores=c.data||[]; groceries=g.data||[]; favs=f.data||[];
+    syncStores();
+    await autoMoveOverdue();
+    render();
+  } catch(err){ logError('Load failed', err.message); render(); }
+}
+function syncStores(){
+  const custom=groceries.map(i=>i.store).filter(s=>s&&!DEFAULT_STORES.includes(s));
+  stores=[...DEFAULT_STORES,...new Set(custom)];
+}
+async function autoMoveOverdue(){
+  const today=localDate(new Date());
+  // Only auto-move one-time (none) chores — repeating chores stay on their scheduled date
+  const overdue=chores.filter(x=>!x.is_completed&&x.due_date<today&&(!x.repetition_type||x.repetition_type==='none'));
+  for(const c of overdue){
+    const {error}=await sb.from('chores').update({due_date:today}).eq('id',c.id);
+    if(error) logError('Auto-move failed',error.message);
+    else c.due_date=today;
+  }
+}
+
+// ============================================================
+//  CHORE CRUD
+// ============================================================
+async function toggleChore(id){
+  const c=chores.find(x=>x.id===id); if(!c) return;
+  try {
+    if(!c.is_completed&&c.repetition_type&&c.repetition_type!=='none'){
+      const orig=c.due_date, nxt=nextDate(c.due_date,c.repetition_type,c.repetition_value);
+      const {error}=await sb.from('chores').update({due_date:nxt}).eq('id',id);
+      if(error) throw error;
+      c.due_date=nxt;
+      showToast(`Moved to ${dateLabel(nxt)}`, async()=>{
+        const {error:e2}=await sb.from('chores').update({due_date:orig}).eq('id',id);
+        if(e2) logError('Undo failed',e2.message); else { c.due_date=orig; render(); }
+      });
+    } else {
+      const nv=!c.is_completed;
+      const {error}=await sb.from('chores').update({is_completed:nv}).eq('id',id);
+      if(error) throw error;
+      c.is_completed=nv;
+    }
+    render();
+  } catch(err){ logError('Toggle chore failed', err.message); }
+}
+
+async function deleteChore(id){
+  try {
+    const {error}=await sb.from('chores').delete().eq('id',id);
+    if(error) throw error;
+    chores=chores.filter(x=>x.id!==id); render();
+  } catch(err){ logError('Delete chore failed', err.message); }
+}
+
+async function saveChore(data){
+  try {
+    if(data.id){
+      const {error}=await sb.from('chores').update({
+        title:data.title, description:data.description,
+        repetition_type:data.repetition_type, repetition_value:data.repetition_value
+      }).eq('id',data.id);
+      if(error) throw error;
+      const i=chores.findIndex(x=>x.id===data.id); if(i>=0) chores[i]={...chores[i],...data};
+    } else {
+      const {data:row,error}=await sb.from('chores').insert({
+        title:data.title, description:data.description, person,
+        is_completed:false, due_date:selDate,
+        repetition_type:data.repetition_type, repetition_value:data.repetition_value
+      }).select().single();
+      if(error) throw error;
+      if(row) chores.push(row);
+    }
+    render();
+  } catch(err){ logError('Save chore failed', err.message); }
+}
+
+// ============================================================
+//  GROCERY CRUD
+// ============================================================
+async function toggleGrocery(id){
+  const g=groceries.find(x=>x.id===id); if(!g) return;
+  try {
+    const nv=!g.is_bought;
+    const {error}=await sb.from('grocery_items').update({is_bought:nv}).eq('id',id);
+    if(error) throw error;
+    g.is_bought=nv; render();
+  } catch(err){ logError('Toggle grocery failed', err.message); }
+}
+
+async function deleteGrocery(id){
+  try {
+    const {error}=await sb.from('grocery_items').delete().eq('id',id);
+    if(error) throw error;
+    groceries=groceries.filter(x=>x.id!==id); render();
+  } catch(err){ logError('Delete grocery failed', err.message); }
+}
+
+async function saveGrocery(data){
+  try {
+    const payload={
+      name:data.name, store:data.store, department:data.department,
+      quantity:data.quantity, price:data.price,
+      brand:data.brand, size:data.size, is_taxed:data.is_taxed
+    };
+    if(data.id){
+      const {error}=await sb.from('grocery_items').update(payload).eq('id',data.id);
+      if(error) throw error;
+      const i=groceries.findIndex(x=>x.id===data.id); if(i>=0) groceries[i]={...groceries[i],...payload};
+    } else {
+      const {data:row,error}=await sb.from('grocery_items').insert({...payload,is_bought:false}).select().single();
+      if(error) throw error;
+      if(row) groceries.push(row);
+    }
+    syncStores(); render();
+  } catch(err){ logError('Save grocery failed', err.message); }
+}
+
+async function clearBought(){
+  try {
+    for(const i of groceries.filter(x=>x.is_bought)){
+      const {error}=await sb.from('grocery_items').delete().eq('id',i.id);
+      if(error) throw error;
+    }
+    groceries=groceries.filter(x=>!x.is_bought); render();
+  } catch(err){ logError('Clear bought failed', err.message); }
+}
+
+// ============================================================
+//  FAVORITES
+// ============================================================
+async function toggleFav(item){
+  try {
+    const ex=favs.find(f=>f.name===item.name&&f.brand===item.brand&&f.size===item.size);
+    if(ex){
+      const {error}=await sb.from('favorite_items').delete().eq('id',ex.id);
+      if(error) throw error;
+      favs=favs.filter(f=>f.id!==ex.id);
+    } else {
+      const {data:row,error}=await sb.from('favorite_items').insert({
+        name:item.name, store:item.store, department:item.department,
+        brand:item.brand||'', size:item.size||'', price:item.price||'',
+        quantity:item.quantity||'1', is_taxed:item.is_taxed||false
+      }).select().single();
+      if(error) throw error;
+      if(row) favs.push(row);
+    }
+    render();
+  } catch(err){ logError('Toggle favorite failed', err.message); }
+}
+
+async function addFavToList(fav){
+  try {
+    const {data:row,error}=await sb.from('grocery_items').insert({
+      name:fav.name, store:fav.store, department:fav.department, is_bought:false,
+      quantity:fav.quantity||'1', brand:fav.brand||'', size:fav.size||'',
+      price:fav.price||'', is_taxed:fav.is_taxed||false
+    }).select().single();
+    if(error) throw error;
+    if(row) groceries.push(row);
+    gSub='list'; render();
+  } catch(err){ logError('Add favorite to list failed', err.message); }
+}
+
+// ============================================================
+//  TOAST (undo)
+// ============================================================
+function showToast(msg,fn){
+  if(undoTimer) clearTimeout(undoTimer);
+  undoFn=fn;
+  document.getElementById('toastMsg').textContent=msg;
+  const t=document.getElementById('toast'); t.style.display='flex';
+  t.style.animation='slideUp .22s ease';
+  undoTimer=setTimeout(()=>{ t.style.display='none'; undoFn=null; },5000);
+}
+function handleUndo(){ if(undoFn){undoFn();undoFn=null;} if(undoTimer) clearTimeout(undoTimer); document.getElementById('toast').style.display='none'; }
+
+// ============================================================
+//  PRICE CHECK — Kroger API + Claude Haiku (Walmart)
+// ============================================================
+const WALMART_MAP={
+  'walmart':'Walmart','wal-mart':'Walmart','wal mart':'Walmart',
+  'walmart supercenter':'Walmart','walmart neighborhood market':'Walmart','walmart grocery':'Walmart'
+};
+function normalizeWalmartStore(raw){
+  if(!raw) return null;
+  const k=raw.toLowerCase().trim().replace(/[.,]/g,'');
+  return WALMART_MAP[k]||null;
+}
+
+// --- Kroger Auth ---
+let krogerToken=null, krogerTokenExp=0;
+async function getKrogerToken(){
+  if(krogerToken && Date.now()<krogerTokenExp) return krogerToken;
+  const creds=btoa(KROGER_CLIENT_ID+':'+KROGER_CLIENT_SECRET);
+  const res=await fetch('https://api.kroger.com/v1/connect/oauth2/token',{
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded','Authorization':'Basic '+creds},
+    body:'grant_type=client_credentials&scope=product.compact'
+  });
+  if(!res.ok) throw new Error('Kroger auth failed: '+res.status);
+  const data=await res.json();
+  krogerToken=data.access_token;
+  krogerTokenExp=Date.now()+(data.expires_in-60)*1000;
+  return krogerToken;
+}
+
+// --- Kroger Product Search ---
+async function getKrogerPrice(item){
+  try {
+    const token=await getKrogerToken();
+    const q=encodeURIComponent([item.name, item.brand, item.size].filter(Boolean).join(' '));
+    const res=await fetch(`https://api.kroger.com/v1/products?filter.term=${q}&filter.locationId=70100119&filter.limit=5`,{
+      headers:{'Authorization':'Bearer '+token,'Accept':'application/json'}
+    });
+    if(!res.ok) throw new Error('Kroger products API: '+res.status);
+    const data=await res.json();
+    const products=data.data||[];
+    if(!products.length) return {store:'Kroger',price:null,found:false};
+
+    // Find the product with a price — prefer exact brand match if brand specified
+    const hasBrand=!!(item.brand&&item.brand.trim());
+    let best=null;
+    for(const p of products){
+      const hasPrice=p.items?.[0]?.price?.regular||p.items?.[0]?.price?.promo;
+      if(!hasPrice) continue;
+      if(hasBrand){
+        const brandMatch=(p.brand||'').toLowerCase().includes(item.brand.toLowerCase());
+        if(brandMatch){ best=p; break; }
+      } else {
+        best=p; break; // take first priced result
+      }
+    }
+    if(!best && hasBrand){
+      // Brand not found at Kroger
+      return {store:'Kroger',price:null,found:false,brandNotFound:true};
+    }
+    if(!best) return {store:'Kroger',price:null,found:false};
+
+    const priceVal=best.items?.[0]?.price?.promo||best.items?.[0]?.price?.regular;
+    return {store:'Kroger',price:priceVal?.toFixed(2)||null,found:!!priceVal};
+  } catch(err){
+    logError('Kroger API error',err.message);
+    return {store:'Kroger',price:null,found:false,error:err.message};
+  }
+}
+
+// --- Walmart via Claude Haiku ---
+async function getWalmartPrice(item){
+  try {
+    const hasBrand=!!(item.brand&&item.brand.trim());
+    const hasSize=!!(item.size&&item.size.trim());
+    const itemDesc=[item.brand,item.name,item.size].filter(Boolean).join(' ');
+    const brandLine=hasBrand
+      ? `IMPORTANT: Must be "${item.brand}" brand specifically. If not found, return found:false.`
+      : `Any brand is fine — return the cheapest option.`;
+
+    const prompt=`Search walmart.com for the current grocery price of "${itemDesc}".
+${brandLine}
+Search query to use: site:walmart.com "${item.name}"${hasSize?' "'+item.size+'"':''}${hasBrand?' "'+item.brand+'"':''}
+
+Find a specific dollar amount from the search results. Return ONLY this JSON, nothing else:
+{"store":"Walmart","price_per_unit":"X.XX","found":true}
+If no price found: {"store":"Walmart","price_per_unit":null,"found":false}`;
+
+    const res=await fetch('/.netlify/functions/claude',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:300,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message);
+    const rawText=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+    logError('Walmart raw response', rawText);
+    const s=rawText.indexOf('{'), e=rawText.lastIndexOf('}');
+    if(s===-1||e===-1) return {store:'Walmart',price:null,found:false};
+    const r=JSON.parse(rawText.slice(s,e+1));
+    return {store:'Walmart',price:r.price_per_unit||null,found:!!r.found};
+  } catch(err){
+    logError('Walmart price error',err.message);
+    return {store:'Walmart',price:null,found:false,error:err.message};
+  }
+}
+
+// --- Main price check orchestrator ---
+async function runPriceCheck(item, itemId){
+  priceItemRef=item; priceItemId=itemId||null; priceLoading=true; priceRows=[]; priceSelIdx=null;
+  showPriceModal();
+  try {
+    // Run Kroger + Walmart in parallel
+    const [kroger, walmart]=await Promise.all([getKrogerPrice(item), getWalmartPrice(item)]);
+    priceRows=[
+      {raw:'Kroger',  canonical:'Kroger',  price:kroger.price,  found:kroger.found,  brandNotFound:kroger.brandNotFound,  error:kroger.error},
+      {raw:'Walmart', canonical:'Walmart', price:walmart.price, found:walmart.found, error:walmart.error}
+    ];
+  } catch(err){
+    logError('Price check failed',err.message);
+    priceRows=[{error:err.message}];
+  }
+  priceLoading=false; renderPriceModal();
+}
+
+// ============================================================
+//  CSV IMPORT
+// ============================================================
+async function importItems(items){
+  for(const it of items){
+    const name=it.Name||it.name||''; if(!name) continue;
+    const brand=it.Brand||it.brand||'', size=it.Size||it.size||'';
+    const qty=it.Qty||it.qty||it.Quantity||it.quantity||'1';
+    const price=it.Price||it.price||'';
+    const taxed=(it.Taxable||it.taxable||'false').toLowerCase()==='true';
+    const dup=groceries.find(g=>g.name.toLowerCase()===name.toLowerCase()&&(g.brand||'').toLowerCase()===brand.toLowerCase()&&(g.size||'').toLowerCase()===size.toLowerCase()&&!g.is_bought);
+    if(dup){
+      const merge=await new Promise(res=>{ mergeRes=res; showMergeModal(name,brand,size,qty,dup); });
+      if(merge){
+        const nq=(parseQty(dup.quantity)+parseQty(qty)).toString();
+        const {error}=await sb.from('grocery_items').update({quantity:nq}).eq('id',dup.id);
+        if(error) logError('Merge qty failed',error.message); else dup.quantity=nq;
+        continue;
+      }
+    }
+    const {data:row,error}=await sb.from('grocery_items').insert({name,brand,size,quantity:qty,price,is_taxed:taxed,store:'Unassigned',department:'Unassigned',is_bought:false}).select().single();
+    if(error) logError('CSV import row failed',error.message); else if(row) groceries.push(row);
+  }
+  syncStores(); render();
+}
+
+// ============================================================
+//  MODAL HELPERS
+// ============================================================
+function openModal(html,type='sheet'){
+  closeModal('mainOv');
+  const ov=document.createElement('div'); ov.className='mov'; ov.id='mainOv';
+  ov.onclick=e=>{ if(e.target===ov) closeModal('mainOv'); };
+  const inner=document.createElement('div'); inner.className=type==='sheet'?'msheet':'mdlg';
+  inner.innerHTML=html; ov.appendChild(inner); document.body.appendChild(ov);
+}
+function closeModal(id='mainOv'){ const el=document.getElementById(id); if(el) el.remove(); }
+
+// ============================================================
+//  CHORE MODAL
+// ============================================================
+function openChoreModal(chore){
+  const rt=chore?.repetition_type||'none', rv=chore?.repetition_value||{};
+  openModal(`
+    <div class="mhdr">
+      <h2 class="mtitle">${chore?'Edit Chore':'New Chore'}</h2>
+      <button class="mclose" onclick="closeModal()">${IC.x}</button>
+    </div>
+    <div class="fg"><label class="flbl">Chore Name</label><input id="ct" class="fin" placeholder="What needs to be done?" value="${esc(chore?.title||'')}"></div>
+    <div class="fg"><label class="flbl">Description (Optional)</label><textarea id="cd" class="fta" rows="2" placeholder="Add details...">${esc(chore?.description||'')}</textarea></div>
+    <div class="frow">
+      <div class="fg">
+        <label class="flbl">Repeat Type</label>
+        <select id="crt" class="fsel" onchange="updateRepFields()">
+          <option value="none" ${rt==='none'?'selected':''}>Once</option>
+          <option value="daily" ${rt==='daily'?'selected':''}>Daily</option>
+          <option value="weekly" ${rt==='weekly'?'selected':''}>Weekly</option>
+          <option value="monthly" ${rt==='monthly'?'selected':''}>Monthly</option>
+          <option value="yearly" ${rt==='yearly'?'selected':''}>Yearly</option>
+          <option value="interval_days" ${rt==='interval_days'?'selected':''}>Every X Days</option>
+          <option value="interval_weeks" ${rt==='interval_weeks'?'selected':''}>Every X Weeks</option>
+          <option value="interval_months" ${rt==='interval_months'?'selected':''}>Every X Months</option>
+        </select>
+      </div>
+      <div class="fg"><label class="flbl">Assigned To</label><div class="apill">${person}</div></div>
+    </div>
+    <div id="rfW" class="fg ${rt!=='weekly'?'hidden':''}"><label class="flbl">Day of Week</label><select id="crDow" class="fsel">${DAYS.map((d,i)=>`<option value="${i}" ${rv.dayOfWeek===i?'selected':''}>${d}</option>`).join('')}</select></div>
+    <div id="rfM" class="fg ${rt!=='monthly'?'hidden':''}"><label class="flbl">Day of Month</label><input id="crDom" class="fin" type="number" min="1" max="31" value="${rv.dayOfMonth||1}"></div>
+    <div id="rfY" class="fg ${rt!=='yearly'?'hidden':''}"><label class="flbl">Month of Year</label><select id="crMoy" class="fsel">${MONTHS.map((m,i)=>`<option value="${i}" ${rv.monthOfYear===i?'selected':''}>${m}</option>`).join('')}</select></div>
+    <div id="rfI" class="fg ${!rt.startsWith('interval')?'hidden':''}"><label class="flbl" id="intLbl">Interval</label><input id="crInt" class="fin" type="number" min="1" value="${rv.interval||1}"></div>
+    <button class="btn-primary" onclick="submitChore('${chore?.id||''}')">${chore?'Save Changes':'Create Chore'}</button>
+  `);
+}
+function updateRepFields(){
+  const v=document.getElementById('crt').value;
+  document.getElementById('rfW').className=`fg ${v!=='weekly'?'hidden':''}`;
+  document.getElementById('rfM').className=`fg ${v!=='monthly'?'hidden':''}`;
+  document.getElementById('rfY').className=`fg ${v!=='yearly'?'hidden':''}`;
+  document.getElementById('rfI').className=`fg ${!v.startsWith('interval')?'hidden':''}`;
+  if(v.startsWith('interval')){ const u=v.split('_')[1]; document.getElementById('intLbl').textContent=`Every How Many ${u[0].toUpperCase()+u.slice(1)}?`; }
+}
+function submitChore(editId){
+  const title=(document.getElementById('ct')?.value||'').trim(); if(!title) return;
+  const desc=(document.getElementById('cd')?.value||'').trim();
+  const rt=document.getElementById('crt')?.value||'none';
+  const rv={};
+  if(rt==='weekly')             rv.dayOfWeek  =parseInt(document.getElementById('crDow')?.value||0);
+  if(rt==='monthly')            rv.dayOfMonth =parseInt(document.getElementById('crDom')?.value||1);
+  if(rt==='yearly')             rv.monthOfYear=parseInt(document.getElementById('crMoy')?.value||0);
+  if(rt.startsWith('interval')) rv.interval   =parseInt(document.getElementById('crInt')?.value||1);
+  closeModal();
+  saveChore({id:editId||null,title,description:desc,repetition_type:rt,repetition_value:rv});
+}
+
+// ============================================================
+//  GROCERY MODAL
+// ============================================================
+function openGroceryModal(item){
+  const sortedSt=[...stores].sort((a,b)=>a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b));
+  const isCustom=item&&item.store&&!stores.includes(item.store);
+  openModal(`
+    <div class="mhdr">
+      <h2 class="mtitle">${item?'Edit Item':'Add Grocery'}</h2>
+      <button class="mclose" onclick="closeModal()">${IC.x}</button>
+    </div>
+    <div class="fg"><label class="flbl">Item Name</label><input id="gn" class="fin" placeholder="Milk, Eggs, etc." value="${esc(item?.name||'')}"></div>
+    <div class="frow">
+      <div class="fg">
+        <label class="flbl">Store</label>
+        <select id="gst" class="fsel" onchange="handleStoreChange()">
+          ${sortedSt.map(s=>`<option value="${esc(s)}" ${!isCustom&&s===(item?.store||sortedSt[0])?'selected':''}>${esc(s)}</option>`).join('')}
+          <option value="" ${isCustom?'selected':''}>+ Custom Store</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="flbl">Department</label>
+        <select id="gd" class="fsel">${DEPARTMENTS.map(d=>`<option value="${d}" ${d===(item?.department||DEPARTMENTS[0])?'selected':''}>${d}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="fg" id="csg" style="${isCustom?'':'display:none'}">
+      <label class="flbl">Custom Store Name</label>
+      <input id="gcs" class="fin" placeholder="Enter store name..." value="${isCustom?esc(item?.store||''):''}">
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flbl">Brand</label><input id="gbr" class="fin" placeholder="e.g. Borden" value="${esc(item?.brand||'')}"></div>
+      <div class="fg"><label class="flbl">Size</label><input id="gsz" class="fin" placeholder="e.g. 1 Gallon" value="${esc(item?.size||'')}"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flbl">Quantity</label><input id="gq" class="fin" placeholder="e.g. 2, 1 lb" value="${esc(item?.quantity||'')}"></div>
+      <div class="fg"><label class="flbl">Price (per unit)</label><input id="gpr" class="fin" placeholder="e.g. 1.50" value="${esc(item?.price||'')}"></div>
+    </div>
+    <div class="fchkrow">
+      <input type="checkbox" id="gtx" class="fchk" ${item?.is_taxed?'checked':''}>
+      <label for="gtx" class="fchklbl">Taxable Item (8.25% Sales Tax)</label>
+    </div>
+    <button class="btn-price" onclick="priceFromModal()">${IC.search} Search for Best Price</button>
+    <button class="btn-primary" onclick="submitGrocery('${item?.id||''}')">${item?'Save Changes':'Add to List'}</button>
+  `);
+}
+function handleStoreChange(){
+  const v=document.getElementById('gst')?.value;
+  const csg=document.getElementById('csg');
+  if(csg) csg.style.display=v===''?'block':'none';
+}
+async function priceFromModal(){
+  const name=(document.getElementById('gn')?.value||'').trim(); if(!name) return;
+  const brand=(document.getElementById('gbr')?.value||'').trim();
+  const size=(document.getElementById('gsz')?.value||'').trim();
+  const qty=(document.getElementById('gq')?.value||'').trim();
+  await runPriceCheck({name,brand,size,quantity:qty}, null);
+}
+function submitGrocery(editId){
+  const name=(document.getElementById('gn')?.value||'').trim(); if(!name) return;
+  const stSel=document.getElementById('gst')?.value||'';
+  const stCust=(document.getElementById('gcs')?.value||'').trim();
+  const store=stSel===''?(stCust||'Unassigned'):stSel;
+  const dept=document.getElementById('gd')?.value||DEPARTMENTS[0];
+  const qty=(document.getElementById('gq')?.value||'').trim();
+  const price=(document.getElementById('gpr')?.value||'').trim();
+  const brand=(document.getElementById('gbr')?.value||'').trim();
+  const size=(document.getElementById('gsz')?.value||'').trim();
+  const taxed=document.getElementById('gtx')?.checked||false;
+  closeModal();
+  saveGrocery({id:editId||null,name,store,department:dept,quantity:qty,price,brand,size,is_taxed:taxed});
+}
+
+// ============================================================
+//  PRICE MODAL
+// ============================================================
+function showPriceModal(){
+  closeModal('priceOv');
+  const ov=document.createElement('div'); ov.className='mov'; ov.id='priceOv'; ov.style.zIndex=110;
+  ov.onclick=e=>{ if(e.target===ov&&!priceLoading) closeModal('priceOv'); };
+  const d=document.createElement('div'); d.className='mdlg'; d.id='priceD';
+  ov.appendChild(d); document.body.appendChild(ov); renderPriceModal();
+}
+
+function renderPriceModal(){
+  const d=document.getElementById('priceD'); if(!d) return;
+  const item=priceItemRef;
+  const subParts=[item?.brand,item?.size].filter(Boolean).join(' · ');
+  const hdr=`<div class="mhdr"><div style="display:flex;align-items:center;gap:10px"><div style="background:#f0fdf4;padding:8px;border-radius:10px;color:#16a34a;display:flex">${IC.dollar_lg}</div><h2 class="mtitle">Price Comparison</h2></div>`;
+
+  if(priceLoading){
+    d.innerHTML=`${hdr}</div>
+      ${item?`<div class="price-nm">${esc(item.name)}</div>${subParts?`<div class="price-sub">${esc(subParts)}</div>`:''}` :''}
+      <div class="price-loading"><div class="spinner"></div><div>Checking Kroger &amp; Walmart prices...</div></div>`;
+    return;
+  }
+
+  const closeBtn=`<button class="mclose" onclick="closeModal('priceOv')">${IC.x}</button>`;
+
+  if(priceRows[0]?.error){
+    d.innerHTML=`${hdr}${closeBtn}</div>
+      <div class="price-error"><strong>Something went wrong</strong>${esc(priceRows[0].error)}</div>
+      <button class="btn-primary" style="margin-top:14px" onclick="closeModal('priceOv')">Close</button>`;
+    return;
+  }
+
+  const allNotFound=priceRows.length>0&&priceRows.every(r=>!r.found);
+  if(allNotFound&&item?.brand){
+    d.innerHTML=`${hdr}${closeBtn}</div>
+      <div class="price-nm">${esc(item.name)}</div>
+      <div class="price-error"><strong>Brand Not Found</strong>"${esc(item.brand)}" was not found at Kroger, Walmart, or Whole Foods. Try removing the brand and searching again.</div>
+      <button class="btn-primary" style="margin-top:14px" onclick="closeModal('priceOv')">Got it</button>`;
+    return;
+  }
+
+  const foundRows=priceRows.filter(r=>r.found&&r.price);
+  const bestPrice=foundRows.length?Math.min(...foundRows.map(r=>parseFloat(r.price))):null;
+
+  const rowsHtml=priceRows.map((r,i)=>{
+    const label=r.canonical||r.raw||'Unknown';
+    if(!r.found||!r.price) return `<div class="price-row unavail"><div><div class="pr-store">${esc(label)}</div><div class="pr-avail">Not available</div></div><div class="pr-right"><div class="pr-na">—</div></div></div>`;
+    const isBest=parseFloat(r.price)===bestPrice;
+    return `<div class="price-row ${priceSelIdx===i?'selected':''}" onclick="selectPriceRow(${i})">
+      <div><div class="pr-store">${esc(label)}</div>${!r.canonical?'<div class="pr-avail" style="color:#f59e0b">⚠ Tap to confirm store</div>':''}</div>
+      <div class="pr-right"><div class="pr-price">$${parseFloat(r.price).toFixed(2)}</div>${isBest?'<div class="pr-best">Best Price</div>':''}</div>
+    </div>`;
+  }).join('');
+
+  d.innerHTML=`${hdr}${closeBtn}</div>
+    <div class="price-nm">${esc(item?.name||'')}</div>
+    ${subParts?`<div class="price-sub">${esc(subParts)} · per unit</div>`:'<div class="price-sub">per unit</div>'}
+    <div class="price-rows">${rowsHtml}</div>
+    <div class="brow">
+      <button class="btn-sec" onclick="closeModal('priceOv')">Cancel</button>
+      <button class="btn-primary" style="flex:1;margin-top:0" onclick="applySelectedPrice()" ${priceSelIdx===null?'disabled':''}>Apply to Form</button>
+    </div>`;
+}
+
+function selectPriceRow(i){ priceSelIdx=i; renderPriceModal(); }
+
+function applySelectedPrice(){
+  if(priceSelIdx===null) return;
+  const row=priceRows[priceSelIdx];
+  if(!row?.price) return;
+  const price=parseFloat(row.price).toFixed(2);
+  if(row.canonical){ fillPriceIntoForm(row.canonical, price); }
+  else { showStoreResolver(row.raw, price); }
+}
+
+function fillPriceIntoForm(store, price){
+  closeModal('priceOv');
+  const prEl=document.getElementById('gpr');
+  const stEl=document.getElementById('gst');
+  if(prEl && stEl){
+    // Grocery modal is open — fill fields directly
+    prEl.value=price;
+    const opt=Array.from(stEl.options).find(o=>o.value===store);
+    if(opt){ stEl.value=store; const csg=document.getElementById('csg'); if(csg) csg.style.display='none'; }
+  } else if(priceItemId){
+    // Called from list view — save directly to DB
+    const g=groceries.find(x=>x.id===priceItemId);
+    if(g) saveGrocery({...g,id:priceItemId,price,store});
+  }
+}
+
+// ============================================================
+//  STORE RESOLVER
+// ============================================================
+function showStoreResolver(rawStore, price){
+  closeModal('resolverOv');
+  const ov=document.createElement('div'); ov.className='mov'; ov.id='resolverOv'; ov.style.zIndex=120;
+  const d=document.createElement('div'); d.className='mdlg';
+  const knownOpts=DEFAULT_STORES.filter(s=>s!=='Unassigned')
+    .map(s=>`<button class="resolver-opt" onclick="resolveStore('${esc(s)}','${esc(price)}')">${esc(s)}</button>`).join('');
+  d.innerHTML=`
+    <div class="mhdr"><h2 class="mtitle">Which store is this?</h2><button class="mclose" onclick="closeModal('resolverOv')">${IC.x}</button></div>
+    <div style="font-size:13px;color:#6b7280;font-weight:600;margin-bottom:4px">We found the best price at:</div>
+    <div style="font-size:17px;font-weight:800;color:#111827;margin-bottom:16px">"${esc(rawStore)}"</div>
+    <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#9ca3af;margin-bottom:8px">Select the correct store:</div>
+    <div class="resolver-opts">
+      ${knownOpts}
+      <button class="resolver-opt add-new" onclick="resolveStore('${esc(rawStore)}','${esc(price)}',true)">+ Add "${esc(rawStore)}" as new store</button>
+      <button class="resolver-opt unassigned" onclick="resolveStore('Unassigned','${esc(price)}')">Leave as Unassigned</button>
+    </div>`;
+  ov.appendChild(d); document.body.appendChild(ov);
+}
+function resolveStore(store, price, addNew){
+  if(addNew&&!stores.includes(store)) stores.push(store);
+  closeModal('resolverOv');
+  fillPriceIntoForm(store, price);
+}
+
+// ============================================================
+//  MERGE MODAL
+// ============================================================
+function showMergeModal(name,brand,size,qty,existing){
+  closeModal('mergeOv');
+  const ov=document.createElement('div'); ov.className='mov'; ov.id='mergeOv'; ov.style.zIndex=130;
+  const d=document.createElement('div'); d.className='mdlg'; d.style.textAlign='center';
+  d.innerHTML=`
+    <div class="merge-ico">${IC.repeat_lg}</div>
+    <div class="savings-title">Duplicate Found!</div>
+    <div class="savings-body" style="margin-bottom:12px"><strong style="color:#0066cc">${esc(name)}</strong> is already in your list. Merge quantities?</div>
+    <div class="merge-detail"><div class="merge-row"><span>Existing Qty:</span><strong>${esc(existing.quantity||'1')}</strong></div><div class="merge-row"><span>New Qty:</span><strong style="color:#0066cc">${esc(qty)}</strong></div></div>
+    <div class="brow"><button class="btn-sec" onclick="resolveMerge(false)">Add as New</button><button class="btn-primary" style="flex:1;margin-top:0" onclick="resolveMerge(true)">Yes, Merge</button></div>`;
+  ov.appendChild(d); document.body.appendChild(ov);
+}
+function resolveMerge(v){ closeModal('mergeOv'); if(mergeRes){mergeRes(v);mergeRes=null;} }
+
+// ============================================================
+//  CSV PREVIEW MODAL
+// ============================================================
+function showCSVPreview(items){
+  closeModal('csvOv');
+  const ov=document.createElement('div'); ov.className='mov'; ov.id='csvOv'; ov.style.zIndex=115;
+  const d=document.createElement('div'); d.className='msheet';
+  d.innerHTML=`
+    <div class="mhdr"><h2 class="mtitle">Review Import (${items.length} items)</h2><button class="mclose" onclick="closeModal('csvOv')">${IC.x}</button></div>
+    <div class="csv-list">${items.map(it=>`<div class="csv-item"><div><div class="csv-nm">${esc(it.Name||it.name||'—')}</div><div class="csv-meta">${esc(it.Brand||it.brand||'No Brand')} · ${esc(it.Size||it.size||'No Size')} · Qty: ${esc(it.Qty||it.qty||it.Quantity||it.quantity||'1')}</div></div>${(it.Price||it.price)?`<div class="csv-price">$${it.Price||it.price}</div>`:''}</div>`).join('')}</div>
+    <div class="brow"><button class="btn-sec" onclick="closeModal('csvOv')">Cancel</button><button class="btn-primary" style="flex:1;margin-top:0" onclick="confirmImport()">Import All</button></div>`;
+  ov.appendChild(d); document.body.appendChild(ov); csvPending=items;
+}
+async function confirmImport(){ const items=csvPending; closeModal('csvOv'); csvPending=[]; await importItems(items); }
+
+// ============================================================
+//  RENDER
+// ============================================================
+function render(){
+  const filtered=chores.filter(c=>c.person===person&&c.due_date===selDate);
+  const sortedSt=[...stores].sort((a,b)=>a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b));
+  document.getElementById('app').innerHTML=`
+    <header class="hdr">
+      <div class="hdr-top">
+        <div onclick="showDebugPanel()" style="cursor:pointer">
+          <div class="logo">BissHiz</div>
+          <div class="logo-sub">${view==='chores'?'Chore List':'Groceries'}</div>
+        </div>
+        <button class="btn-add" onclick="openAdd()">${IC.plus}</button>
+      </div>
+      <div class="view-toggle">
+        <button class="vtab ${view==='chores'?'active':''}" onclick="setView('chores')">${IC.clock} Chores</button>
+        <button class="vtab ${view==='groceries'?'active':''}" onclick="setView('groceries')">${IC.cart} Groceries</button>
+      </div>
+    </header>
+    <main>
+      ${renderWeather()}
+      ${view==='chores'?renderChores(filtered):renderGroceries(sortedSt)}
+    </main>
+    ${view==='chores'?renderBNav():''}
+  `;
+  const csv=document.getElementById('csvInput');
+  if(csv) csv.onchange=e=>{ const f=e.target.files[0]; if(!f) return; Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{csv.value='';showCSVPreview(r.data);}}); };
+}
+
+function renderWeather(){
+  return `<div class="weather"><div class="w-left"><div><div class="w-icon">${WEATHER.icon}</div><div class="w-fc">${WEATHER.forecast.map(f=>`<div class="w-fc-day"><div class="w-fc-ico">${f.icon}</div><div class="w-fc-lbl">${f.day}</div></div>`).join('')}</div></div><div><div class="w-temp">${WEATHER.temp}°</div><div class="w-cond">${WEATHER.cond}</div></div></div><div class="w-loc"><div class="w-zip">75407</div><div class="w-city">Princeton, TX</div></div></div>`;
+}
+
+function renderChores(filtered){
+  return `
+    <div class="date-nav">
+      <button class="dnbtn" onclick="changeDate(-1)">${IC.chevL}</button>
+      <div class="dn-lbl">${IC.calendar}${dateLabel(selDate)}</div>
+      <button class="dnbtn" onclick="changeDate(1)">${IC.chevR}</button>
+    </div>
+    <div class="chore-list">
+      ${filtered.length===0
+        ?`<div class="empty"><div class="empty-ico">${IC.check_ico}</div><div class="empty-lbl">No chores for this day!</div></div>`
+        :filtered.map(renderChoreCard).join('')}
+    </div>`;
+}
+
+function renderChoreCard(c){
+  const done=c.is_completed, hasRep=c.repetition_type&&c.repetition_type!=='none';
+  return `<div class="ccard ${done?'done':''}">
+    <button class="tog ${done?'checked':''}" onclick="toggleChore('${c.id}')">${done?IC.check:IC.circle}</button>
+    <div class="cbody">
+      <div class="ctitle ${done?'struck':''}">${esc(c.title)}</div>
+      ${c.description?`<div class="cdesc">${esc(c.description)}</div>`:''}
+      ${hasRep?`<div class="rep-badge">${IC.repeat}${repLabel(c.repetition_type,c.repetition_value)}</div>`:''}
+    </div>
+    <div class="cacts">
+      <button class="ibtn edit" onclick="openEditChore('${c.id}')">${IC.edit}</button>
+      <button class="ibtn del" onclick="deleteChore('${c.id}')">${IC.trash}</button>
+    </div>
+  </div>`;
+}
+
+function renderGroceries(sortedSt){
+  const hasBought=groceries.some(i=>i.is_bought);
+  const grouped={};
+  sortedSt.forEach(s=>{ const si=groceries.filter(i=>i.store===s); if(!si.length) return; grouped[s]={}; DEPARTMENTS.forEach(d=>{ const di=si.filter(i=>i.department===d); if(di.length) grouped[s][d]=di; }); });
+  return `
+    <div class="g-tabs">
+      <button class="gtab ${gSub==='list'?'active':''}" onclick="setGSub('list')">My List</button>
+      <button class="gtab ${gSub==='favorites'?'active':''}" onclick="setGSub('favorites')">Favorites</button>
+    </div>
+    ${gSub==='list'?`
+      <div class="g-ctrl">
+        <button class="cbtn imp" onclick="document.getElementById('csvInput').click()">${IC.plus_sm} Import CSV</button>
+        ${hasBought?`<button class="cbtn clr" onclick="clearBought()">${IC.trash_sm} Clear Done</button>`:''}
+      </div>
+      ${groceries.length===0
+        ?`<div class="empty"><div class="empty-ico">${IC.cart}</div><div class="empty-lbl">Your grocery list is empty!</div></div>`
+        :Object.entries(grouped).map(([s,d])=>renderStore(s,d)).join('')}
+    `:renderFavs()}`;
+}
+
+function renderStore(store,depts){
+  let sub=0,tax=0;
+  Object.values(depts).forEach(items=>items.forEach(i=>{ if(!i.is_bought){ const p=parsePrice(i.price)*parseQty(i.quantity); sub+=p; if(i.is_taxed) tax+=p*TAX_RATE; } }));
+  return `<div class="store-sec">
+    <div class="store-hdr">
+      <div class="store-left">${IC.store}<span class="store-nm">${esc(store)}</span></div>
+      ${sub>0?`<div class="store-tot">$${sub.toFixed(2)} + $${tax.toFixed(2)} = <span class="tot">$${(sub+tax).toFixed(2)}</span></div>`:''}
+    </div>
+    ${Object.entries(depts).map(([dept,items])=>`
+      <div class="dept-sec">
+        <div class="dept-hdr">${IC.tag}<span class="dept-nm">${dept}</span></div>
+        ${items.map(renderGCard).join('')}
+      </div>`).join('')}
+  </div>`;
+}
+
+function renderGCard(item){
+  const isFav=favs.some(f=>f.name===item.name&&f.brand===item.brand&&f.size===item.size);
+  const qty=parseQty(item.quantity), price=parsePrice(item.price);
+  const priceStr=!item.is_bought&&price>0?(qty>1?`$${price.toFixed(2)} ea · $${(price*qty).toFixed(2)} total`:`$${price.toFixed(2)}`):'' ;
+  return `<div class="gcrd ${item.is_bought?'bought':''}">
+    <button class="tog ${item.is_bought?'checked':''}" onclick="toggleGrocery('${item.id}')">${item.is_bought?IC.check_sm:IC.circle_sm}</button>
+    <div class="cbody">
+      <div class="gn ${item.is_bought?'struck':''}">${item.brand?`<span class="gbr">${esc(item.brand)}</span> `:''}${esc(item.name)}${item.size?` <span class="gsz">(${esc(item.size)})</span>`:''}</div>
+      <div class="gmeta">
+        ${item.quantity?`<div class="gqty"><b>Qty:</b>${esc(item.quantity)}</div>`:''}
+        ${priceStr?`<div class="pbadge">${priceStr}</div>`:''}
+        ${item.is_taxed&&!item.is_bought?`<div class="taxlbl">Taxable</div>`:''}
+      </div>
+    </div>
+    <div class="cacts">
+      <button class="ibtn heart ${isFav?'on':''}" onclick="toggleFavById('${item.id}')">${IC.heart}</button>
+      <button class="ibtn price" onclick="runPriceById('${item.id}')">${IC.dollar}</button>
+      <button class="ibtn edit" onclick="openEditGrocery('${item.id}')">${IC.edit}</button>
+      <button class="ibtn del" onclick="deleteGrocery('${item.id}')">${IC.trash}</button>
+    </div>
+  </div>`;
+}
+
+function renderFavs(){
+  if(!favs.length) return `<div class="empty"><div class="empty-ico">${IC.heart}</div><div class="empty-lbl">No favorites yet!</div><div class="empty-sub">Heart items in your list to save them here.</div></div>`;
+  return favs.map(f=>`<div class="fav-crd">
+    <div class="cbody">
+      <div class="gn">${f.brand?`<span class="gbr">${esc(f.brand)}</span> `:''}${esc(f.name)}${f.size?` <span class="gsz">(${esc(f.size)})</span>`:''}</div>
+      <div class="gmeta">${f.quantity?`<div class="gqty"><b>Qty:</b>${esc(f.quantity)}</div>`:''} ${f.price?`<div class="pbadge">$${parsePrice(f.price).toFixed(2)}</div>`:''} ${f.is_taxed?`<div class="taxlbl">Taxable</div>`:''}</div>
+      <div class="fav-sd">${esc(f.store)} · ${esc(f.department)}</div>
+    </div>
+    <div class="fav-acts">
+      <button class="btn-unfav" onclick="toggleFavDirect('${f.id}')">${IC.heart_lg}</button>
+      <button class="btn-addfav" onclick="addFavToListById('${f.id}')">${IC.plus_sm}</button>
+    </div>
+  </div>`).join('');
+}
+
+function renderBNav(){
+  const navIcons={'Dad':IC.dad,'Honey-do':IC.honeyd,'Mom':IC.mom};
+  return `<nav class="bnav">${PEOPLE.map(p=>`<button class="nbtn ${p===person?'active':''}" onclick="setPerson('${p}')">${navIcons[p]}${p}</button>`).join('')}</nav>`;
+}
+
+// ============================================================
+//  ACTIONS
+// ============================================================
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function setView(v){ view=v; render(); }
+function setGSub(v){ gSub=v; render(); }
+function setPerson(p){ person=p; render(); }
+function changeDate(n){ selDate=shiftDate(selDate,n); render(); }
+function openAdd(){ view==='chores'?openChoreModal(null):openGroceryModal(null); }
+function openEditChore(id){ const c=chores.find(x=>x.id===id); if(c) openChoreModal(c); }
+function openEditGrocery(id){ const g=groceries.find(x=>x.id===id); if(g) openGroceryModal(g); }
+function toggleFavById(id){ const g=groceries.find(x=>x.id===id); if(g) toggleFav(g); }
+function toggleFavDirect(id){ const f=favs.find(x=>x.id===id); if(f) toggleFav(f); }
+function addFavToListById(id){ const f=favs.find(x=>x.id===id); if(f) addFavToList(f); }
+function runPriceById(id){ const g=groceries.find(x=>x.id===id); if(g) runPriceCheck(g, id); }
+
+// ============================================================
+//  REALTIME
+// ============================================================
+function setupRealtime(){
+  try {
+    sb.channel('app')
+      .on('postgres_changes',{event:'*',schema:'public',table:'chores'},loadAll)
+      .on('postgres_changes',{event:'*',schema:'public',table:'grocery_items'},loadAll)
+      .on('postgres_changes',{event:'*',schema:'public',table:'favorite_items'},loadAll)
+      .subscribe((status,err)=>{
+        if(err) logError('Realtime error',err.message||String(err));
+      });
+  } catch(err){
+    logError('Realtime setup failed (non-critical)',err.message);
+  }
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+loadAll().then(setupRealtime);
+</script>
+</body>
+</html>
